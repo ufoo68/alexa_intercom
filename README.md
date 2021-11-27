@@ -17,7 +17,6 @@
 #define WIFI_PASS "your pass"
 ```
 
-
 ## 参考
 
 - [fauxmoESP で スマートホームデバイス自作](https://homemadegarbage.com/espalexa04)
