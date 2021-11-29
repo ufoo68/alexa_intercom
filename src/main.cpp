@@ -3,6 +3,7 @@
 #include <WiFi.h>
 #include <Adafruit_PWMServoDriver.h>
 #include <fauxmoESP.h>
+#include <ArduinoOTA.h>
 #include "wifi_setting.h"
 
 Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver(0x40, Wire);
@@ -15,16 +16,10 @@ Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver(0x40, Wire);
 
 fauxmoESP fauxmo;
 
-void setup()
+void wifiSetup()
 {
   WiFi.mode(WIFI_STA);
   WiFi.begin(WIFI_SSID, WIFI_PASS);
-  M5.begin(true, true, true, true, kMBusModeInput);
-  pwm.begin();
-  pwm.setPWMFreq(50);
-  M5.Lcd.setCursor(115, 0, 4);
-  M5.Lcd.setTextColor(TFT_GREEN, TFT_BLACK);
-  M5.Lcd.print("Servo2");
   while (WiFi.status() != WL_CONNECTED)
   {
     Serial.print(".");
@@ -32,22 +27,71 @@ void setup()
   }
   Serial.println();
   Serial.printf("[WIFI] STATION Mode, SSID: %s, IP address: %s\n", WiFi.SSID().c_str(), WiFi.localIP().toString().c_str());
-  // fauxmo
+}
+
+void otaSetup()
+{
+  ArduinoOTA.setHostname("m5stack-core2");
+
+  ArduinoOTA
+      .onStart([]()
+               {
+                 String type;
+                 if (ArduinoOTA.getCommand() == U_FLASH)
+                   type = "sketch";
+                 else // U_SPIFFS
+                   type = "filesystem";
+                 Serial.println("Start updating " + type);
+               })
+      .onEnd([]()
+             { Serial.println("\nEnd"); })
+      .onProgress([](unsigned int progress, unsigned int total)
+                  { Serial.printf("Progress: %u%%\r", (progress / (total / 100))); })
+      .onError([](ota_error_t error)
+               {
+                 Serial.printf("Error[%u]: ", error);
+                 if (error == OTA_AUTH_ERROR)
+                   Serial.println("Auth Failed");
+                 else if (error == OTA_BEGIN_ERROR)
+                   Serial.println("Begin Failed");
+                 else if (error == OTA_CONNECT_ERROR)
+                   Serial.println("Connect Failed");
+                 else if (error == OTA_RECEIVE_ERROR)
+                   Serial.println("Receive Failed");
+                 else if (error == OTA_END_ERROR)
+                   Serial.println("End Failed");
+               });
+
+  ArduinoOTA.begin();
+}
+
+void setup()
+{
+  wifiSetup();
+  otaSetup();
+  // https://docs.m5stack.com/en/module/servo2?id=module-servo-2
+  M5.begin(true, true, true, true, kMBusModeInput);
+  // Servoのセットアップ
+  pwm.begin();
+  pwm.setPWMFreq(50);
+  // Alexa deviceのセットアップ
   fauxmo.createServer(true);
   fauxmo.setPort(80);
   fauxmo.enable(true);
   fauxmo.addDevice("intercom");
   fauxmo.addDevice("door");
   fauxmo.onSetState([](unsigned char device_id, const char *device_name, bool state, unsigned char value)
-                    { 
+                    {
+                      Serial.printf("[MAIN] Device #%d (%s) state: %s value: %d\n", device_id, device_name, state ? "ON" : "OFF", value);
                       switch (device_id)
                       {
                         // intercom
-                      case 0: 
-                        Serial.printf("intercom: %s\n", state ? "ON" : "OFF");
+                      case 0:
+                        state ? M5.Lcd.fillScreen(WHITE) : M5.Lcd.fillScreen(BLACK);
                         break;
+                        // door
                       case 1:
-                        Serial.printf("door: %s\n", state ? "ON" : "OFF");
+                        state ? M5.Lcd.fillScreen(RED) : M5.Lcd.fillScreen(BLUE);
                       default:
                         break;
                       }
@@ -79,15 +123,6 @@ void servo_angle_write(uint8_t n, int Angle)
 
 void loop()
 {
-  // for (int i = 0; i < 16; i++)
-  // {
-  //   setServoPulse(i, 0.5);
-  // }
-  // delay(500);
-  // for (int i = 0; i < 16; i++)
-  // {
-  //   setServoPulse(i, 2.5);
-  // }
-  // delay(500);
   fauxmo.handle();
+  ArduinoOTA.handle();
 }
