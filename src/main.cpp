@@ -16,6 +16,29 @@ Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver(0x40, Wire);
 
 fauxmoESP fauxmo;
 
+void setServoPulse(uint8_t n, double pulse)
+{
+  double pulselength;
+  pulselength = 1000000; // 1,000,000 us per second
+  pulselength /= 50;     // 50 Hz
+  Serial.print(pulselength);
+  Serial.println(" us per period");
+  pulselength /= 4096; // 12 bits of resolution
+  Serial.print(pulselength);
+  Serial.println(" us per bit");
+  pulse *= 1000;
+  pulse /= pulselength;
+  Serial.println(pulse);
+  pwm.setPWM(n, 0, pulse);
+}
+
+void servo_angle_write(uint8_t n, int Angle)
+{
+  double pulse = Angle;
+  pulse = pulse / 90 + 0.5;
+  setServoPulse(n, pulse);
+}
+
 void wifiSetup()
 {
   WiFi.mode(WIFI_STA);
@@ -65,16 +88,8 @@ void otaSetup()
   ArduinoOTA.begin();
 }
 
-void setup()
+void alexaDeviceSetup()
 {
-  wifiSetup();
-  otaSetup();
-  // https://docs.m5stack.com/en/module/servo2?id=module-servo-2
-  M5.begin(true, true, true, true, kMBusModeInput);
-  // Servoのセットアップ
-  pwm.begin();
-  pwm.setPWMFreq(50);
-  // Alexa deviceのセットアップ
   fauxmo.createServer(true);
   fauxmo.setPort(80);
   fauxmo.enable(true);
@@ -83,42 +98,28 @@ void setup()
   fauxmo.onSetState([](unsigned char device_id, const char *device_name, bool state, unsigned char value)
                     {
                       Serial.printf("[MAIN] Device #%d (%s) state: %s value: %d\n", device_id, device_name, state ? "ON" : "OFF", value);
-                      switch (device_id)
-                      {
-                        // intercom
-                      case 0:
-                        state ? M5.Lcd.fillScreen(WHITE) : M5.Lcd.fillScreen(BLACK);
-                        break;
-                        // door
-                      case 1:
-                        state ? M5.Lcd.fillScreen(RED) : M5.Lcd.fillScreen(BLUE);
-                      default:
-                        break;
-                      }
+                      setServoPulse(device_id, 0.5);
+                      delay(500);
+                      setServoPulse(device_id, 2.5);
                     });
 }
 
-void setServoPulse(uint8_t n, double pulse)
-{
-  double pulselength;
-  pulselength = 1000000; // 1,000,000 us per second
-  pulselength /= 50;     // 50 Hz
-  Serial.print(pulselength);
-  Serial.println(" us per period");
-  pulselength /= 4096; // 12 bits of resolution
-  Serial.print(pulselength);
-  Serial.println(" us per bit");
-  pulse *= 1000;
-  pulse /= pulselength;
-  Serial.println(pulse);
-  pwm.setPWM(n, 0, pulse);
+void servoSetup() {
+  pwm.begin();
+  pwm.setPWMFreq(50);
 }
 
-void servo_angle_write(uint8_t n, int Angle)
+void setup()
 {
-  double pulse = Angle;
-  pulse = pulse / 90 + 0.5;
-  setServoPulse(n, pulse);
+  wifiSetup();
+  otaSetup();
+  alexaDeviceSetup();
+  servoSetup();
+
+  // https://docs.m5stack.com/en/module/servo2?id=module-servo-2
+  M5.begin(true, true, true, false, kMBusModeInput);
+  // servo2 moduleの対応Pinに合わせるため
+  Wire.begin(21, 22);
 }
 
 void loop()
