@@ -1,6 +1,8 @@
 # Alexa対応、インターフォン自動化IoTデバイス
 
-インターフォンを自動で対応するためのデバイスのソースコードです。Alexaに対応しています。
+インターフォンを自動で対応するためのデバイスのソースコードです。Alexaに対応しています。↓イメージはこんな感じです。
+
+![img](https://pbs.twimg.com/media/FFcAhW0aAAE_T0l?format=jpg&name=small)
 
 ## 使用ハードウェア
 
