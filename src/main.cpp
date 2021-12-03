@@ -98,9 +98,11 @@ void alexaDeviceSetup()
   fauxmo.onSetState([](unsigned char device_id, const char *device_name, bool state, unsigned char value)
                     {
                       Serial.printf("[MAIN] Device #%d (%s) state: %s value: %d\n", device_id, device_name, state ? "ON" : "OFF", value);
-                      setServoPulse(device_id, 0.5);
+                      servo_angle_write(device_id, 90);
                       delay(500);
-                      setServoPulse(device_id, 2.5);
+                      servo_angle_write(device_id, 70);
+                      delay(500);
+                      servo_angle_write(device_id, 90);
                     });
 }
 
@@ -111,15 +113,14 @@ void servoSetup() {
 
 void setup()
 {
-  wifiSetup();
-  otaSetup();
-  alexaDeviceSetup();
-  servoSetup();
-
   // https://docs.m5stack.com/en/module/servo2?id=module-servo-2
   M5.begin(true, true, true, false, kMBusModeInput);
   // servo2 moduleの対応Pinに合わせるため
   Wire.begin(21, 22);
+  wifiSetup();
+  otaSetup();
+  alexaDeviceSetup();
+  servoSetup();
 }
 
 void loop()
